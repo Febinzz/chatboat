@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Elderly Voice Companion</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+
+        button {
+            font-size: 20px;
+            padding: 15px 30px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        #status {
+            margin-top: 30px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>👵 Elderly Voice Companion</h1>
+
+    <p>Press the button and speak.</p>
+
+    <button id="recordButton">🎤 Start Recording</button>
+
+    <div id="status">Ready</div>
+
+    <script>
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        const recordButton = document.getElementById("recordButton");
+        const status = document.getElementById("status");
+
+        recordButton.onclick = async () => {
+
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true
+                });
+
+                mediaRecorder = new MediaRecorder(stream);
+
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+
+                    status.innerText = "Uploading audio...";
+
+                    const audioBlob = new Blob(audioChunks, {
+                        type: "audio/webm"
+                    });
+
+                    const formData = new FormData();
+
+                    formData.append(
+                        "file",
+                        audioBlob,
+                        "recording.webm"
+                    );
+
+                    try {
+
+                        const response = await fetch("/speech", {
+                            method: "POST",
+                            body: formData
+                        });
+
+                        const result = await response.json();
+
+                        console.log(result);
+
+                        status.innerText =
+    "🧠 You said: " + result.text +
+    "\n\n🤖 Companion: " + result.response;
+
+const audio = new Audio(result.audio);
+audio.play();
+
+                    } catch (error) {
+
+                        console.error(error);
+
+                        status.innerText =
+                            "❌ Could not connect to server.";
+                    }
+                };
+
+                mediaRecorder.start();
+
+                recordButton.innerText = "⏹️ Stop Recording";
+                status.innerText = "🎤 Listening...";
+
+            } else {
+
+                mediaRecorder.stop();
+
+                recordButton.innerText = "🎤 Start Recording";
+                status.innerText = "Processing...";
+
+            }
+        };
+
+    </script>
+
+</body>
+</html>
